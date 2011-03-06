@@ -6,9 +6,11 @@
 void toggle_LED1 (void);
 void toggle_BrakeL (void);
 void toggle_BrakeR (void);
+void hall_L (void);
+void hall_R (void);
 void HIGH_ISR(void);
 
-unsigned int TimeIntL = 0, TimeIntR = 0;
+unsigned int TimeIntL = 0, TimeIntR = 0, HallCountL = 0, HallCountR = 0;
 
 #pragma code HIGH_INTERRUPT_VECTOR = 0x8	//Where the code goes when a high priority interrupt happens
 void high_interrupt (void)
@@ -34,6 +36,20 @@ void toggle_LED1(void)
 	TMR0L=0x00;//f424
 }
 
+#pragma interrupt hall_L		//interrupt code for Left hall sensor
+void hall_L(void)
+{
+	HallCountL++;
+	INTCONbits.INT0IF = 0;
+}
+
+#pragma interrupt hall_R		//interrupt code for Right hall sensor
+void hall_R(void)
+{
+	HallCountR++;
+	INTCON3bits.INT1IF = 0;
+}
+		
 #pragma interrupt toggle_BrakeL		//Interrupt code for Left Stepper
 void toggle_BrakeL(void)
 {
@@ -56,7 +72,19 @@ void toggle_BrakeR(void)
 
 void HIGH_ISR (void)				//Figures out what interrupt triggered and runs the code.
 {
-	if (PIR2bits.TMR3IF && PIE2bits.TMR3IE)
+	if(INTCONbits.INT0IF && INTCONbits.INT0IE)
+	{
+		_asm
+		goto hall_L
+		_endasm
+	}
+	else if (INTCON3bits.INT1IF && INTCON3bits.INT1IE)
+	{
+		_asm
+		goto hall_R
+		_endasm
+	}		
+	else if (PIR2bits.TMR3IF && PIE2bits.TMR3IE)
 	{
 		_asm
 		goto toggle_BrakeR
@@ -76,12 +104,17 @@ void Brakes_Init(void)
 	IPR1bits.TMR1IP = 1;		//timer1 high priority
 	INTCON2bits.TMR0IP = 0;		//timer0 low priority
 	IPR2bits.TMR3IP = 1;		//timer3 high priority
+	INTCON3bits.INT1IP = 1;		//INT1 high priority
+	INTCON2bits.INTEDG0 = 0;	//enables INT0 on falling edge
+	INTCON2bits.INTEDG1 = 0;	//enables INT1 on falling edge
 	INTCONbits.GIEH = 1;		//enables high priority interrupts
 	INTCONbits.GIEL = 1;		//enables low priority interrupts
 	PIE1bits.TMR1IE = 1;		//enable timer1 interrupt
 	INTCONbits.TMR0IE = 1;		//enable timer0 interrupt
 	PIE2bits.TMR3IE = 1;		//enable timer3 interrupt
-	T0CON = 0b00000010;			//sets up timer 0, 1:8 prescalar
+	INTCONbits.INT0IE = 1;		//enable INT0 interrupt
+	INTCON3bits.INT1IE = 1;		//enable INT1 interrupt
+	T0CON = 0b00000011;			//sets up timer 0, 1:8 prescalar
 	TMR0H = 0x00;				//sets initial as 0
 	TMR0L = 0x00;				//
 	T1CON = 0b11000000;			//sets up timer 1, 1:1
@@ -114,3 +147,20 @@ void Set_Speed(unsigned char L, unsigned char R) //252 is the fastest safetly.
 		T3CONbits.TMR3ON = 1;
 	}
 }		
+
+void Reset_Hall_Counts(void)
+{
+	HallCountR = 0;
+	HallCountL = 0;
+}
+
+int get_Hall_L(void)
+{
+	return HallCountL;
+}
+
+int get_Hall_R(void)
+{
+	return HallCountR;
+}
+			

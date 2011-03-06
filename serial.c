@@ -8,4 +8,3 @@ void Serial_Init(void)
 	TRISCbits.TRISC6 = 1;
 	
 }
-	

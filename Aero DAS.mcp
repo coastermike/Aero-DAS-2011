@@ -8,7 +8,7 @@ dir_src=
 dir_bin=
 dir_tmp=
 dir_sin=
-dir_inc=C:\MCC18\h;C:\Users\Michael\Aero DAS
+dir_inc=C:\MCC18\h;C:\Users\Michael\Aero-DAS-2011
 dir_lib=C:\MCC18\lib
 dir_lkr=
 [CAT_FILTERS]
