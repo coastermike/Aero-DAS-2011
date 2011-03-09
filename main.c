@@ -15,11 +15,10 @@ void main (void)
 	Pin_Init();
 	Brakes_Init();
 	Adc_Init();
-	Set_Speed(0,0);
+	Set_Speed(0);
 	while(1)
 	{
 		i = Adc_Read(0);
-		LEDStatus2=1;
 	}
 
 }
