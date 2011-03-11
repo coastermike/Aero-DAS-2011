@@ -12,10 +12,10 @@ void hall_R (void);
 void HIGH_ISR(void);
 
 const unsigned float constant = .6;
-unsigned int TimeIntL = 0, TimeIntR = 0, TimeIntClk = 0, HallCountL = 0, HallCountR = 0, risetime = 0, falltime = 0;
+unsigned int TimeIntL = 0, TimeIntR = 0, TimeIntClk = 0, HallCountL = 0, HallCountR = 0, TempHallCountL = 0, TempHallCountR = 0, risetime = 0, falltime = 0;
 unsigned char overflowCount = 0;
-unsigned char history = 0;
-unsigned int noLoadL = 0, noLoadR = 0;
+unsigned char history = 0, history1 = 0, save = 0;
+unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0;
 
 #pragma code HIGH_INTERRUPT_VECTOR = 0x8	//Where the code goes when a high priority interrupt happens
 void high_interrupt (void)
@@ -48,8 +48,24 @@ void toggle_LED1(void)
 void toggle_LED2(void)
 {
 	LEDStatus2 = ~LEDStatus2;
-	history == 2;
-//	INTCONbits.TMR0IF = 0;
+	if (history == 1)
+	{
+		history = 2;
+	}
+	else if (history1 == 1)
+	{
+		history1 = 2;
+	}
+	else if (history1 == 10)
+	{
+		history1 = 11;
+	}
+	else if (save == 2)
+	{
+		save = 3;
+	}	
+	T0CONbits.TMR0ON = 0;
+	INTCONbits.TMR0IF = 0;
 	TMR0H = (char)(TimeIntClk >> 8); 		//Set the initial value for the timer
 	TMR0L = (char)TimeIntClk; // & 0x00FF) << 8;
 }
@@ -57,14 +73,28 @@ void toggle_LED2(void)
 #pragma interrupt hall_L		//interrupt code for Left hall sensor
 void hall_L(void)
 {
-	HallCountL++;
+	if(save == 1)
+	{
+		HallCountL++;
+	}
+	else if (save == 2)
+	{
+		TempHallCountL++;
+	}		
 	INTCONbits.INT0IF = 0;
 }
 
 #pragma interrupt hall_R		//interrupt code for Right hall sensor
 void hall_R(void)
 {
-	HallCountR++;
+	if(save == 1)
+	{
+		HallCountR++;
+	}
+	else if (save == 2)
+	{
+		TempHallCountR++;
+	}
 	INTCON3bits.INT1IF = 0;
 }
 
@@ -236,26 +266,90 @@ unsigned float get_Hall_R(void)
 	return HallCountR*constant;
 }
 
-void calibrate(void)
+//waits for SW1 or 2 to be pressed for >1sec, then stores the values while unloaded.
+void calibrateNoLoad(void)
 {
 	if((SW1 || SW2) && history == 0)
 	{
-		TimeIntClk = 0xE17B;
+		TMR0H = 0xE1;
+		TMR0L = 0x7B;
 		T0CONbits.TMR0ON = 1;
 		history = 1;
 	}
-	else if(history == 2)
+	if(history == 2)
 	{
-		while(SW1 && SW2){}
-		T0CONbits.TMR0ON = 0;
-		INTCONbits.TMR0IF = 0;
+		while(SW1 || SW2){}
 		noLoadL = Adc_Read(0);
 		noLoadR = Adc_Read(1);
-		LED6 = 1;
+		LED6 = ~LED6;
 		history = 0;
 	}
 	if(!SW1 && !SW2 && history == 1)
 	{
 		history = 0;
+		T0CONbits.TMR0ON = 0;
 	}		
 }
+
+//waits for SW3 or 4 to be pressed for >1sec, then waits one second and then stores the force values while loaded
+void calibrateLoad(void)
+{
+	if((SW3 || SW4) && history1 == 0)
+	{
+		TMR0H = 0xE1;
+		TMR0L = 0x7B;
+		T0CONbits.TMR0ON = 1;
+		history1 = 1;
+	}
+	if(history1 == 2)
+	{
+		while(SW3 || SW4){}
+		TMR0H = 0xE1;
+		TMR0L = 0x7B;
+		T0CONbits.TMR0ON = 1;
+		history1 = 10;
+	}
+	if(history1 == 11)
+	{	
+		LoadL = Adc_Read(0);
+		LoadR = Adc_Read(1);
+		LED7 = ~LED7;
+		history1 = 0;	
+	}
+	if(!SW3 && !SW4 && history1 == 1)
+	{
+		history1 = 0;
+		T0CONbits.TMR0ON = 0;
+	}		
+}
+
+//takeoff hall sensor sequence, if the plane loses contact for >2 seconds stop counting
+void takeOff(void)
+{
+	if(save == 0)
+	{
+		save = 1;
+		INTCONbits.INT0IE = 1;
+		INTCON3bits.INT1IE = 1;
+	}	
+	if((Adc_Read(0) > LoadL) && (Adc_Read(1) > LoadR) && save == 1)
+	{
+		TMR0H = 0xC2;		//2 seconds
+		TMR0L = 0xF7;
+		save = 2;
+		T0CONbits.TMR0ON = 1;
+	}
+	if(((Adc_Read(0) < LoadL) || (Adc_Read(1) < LoadR)) && save == 2)
+	{
+		T0CONbits.TMR0ON = 0;
+		save = 1;
+		HallCountL = HallCountL + TempHallCountL;
+		HallCountR = HallCountR + TempHallCountR;
+	}	
+}
+
+void land(void)
+{
+	
+}
+		

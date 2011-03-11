@@ -17,7 +17,23 @@ void main (void)
 	Set_Speed(0);
 	while(1)
 	{
-		calibrate();
+		calibrateNoLoad();
+		calibrateLoad();
+		if(LED6 && LED7)//start
+		{
+//			if(status() == 0)	//takeoff
+//			{
+//				takeOff();
+//			}
+//			else if(status() == 1) //flight
+//			{
+//				
+//			}	
+//			else if(status() == 2) //landing
+//			{
+//				land();
+//			}
+		}		
 	}
 
 }
