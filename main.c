@@ -10,7 +10,6 @@
 
 void main (void)
 {
-	unsigned char i;
 	OSCCON=OSCCON | 0b01110011;  //page 32 datasheet
 	Pin_Init();
 	Brakes_Init();
@@ -18,7 +17,7 @@ void main (void)
 	Set_Speed(0);
 	while(1)
 	{
-		i = Adc_Read(0);
+		calibrate();
 	}
 
 }

@@ -6,5 +6,6 @@ void Set_Speed(unsigned char L);//, unsigned char R);
 void Reset_Hall_Counts(void);
 unsigned float get_Hall_R(void);
 unsigned float get_Hall_L(void);
+void calibrate (void);
 
 #endif

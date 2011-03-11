@@ -2,6 +2,7 @@
 #include "pins.h"
 #include "init.h"
 #include "brakes.h"
+#include "adc_read.h"
 
 void toggle_LED1 (void);
 void toggle_BrakeL (void);
@@ -11,7 +12,10 @@ void hall_R (void);
 void HIGH_ISR(void);
 
 const unsigned float constant = .6;
-unsigned int TimeIntL = 0, TimeIntR = 0, HallCountL = 0, HallCountR = 0, risetime = 0, falltime = 0;
+unsigned int TimeIntL = 0, TimeIntR = 0, TimeIntClk = 0, HallCountL = 0, HallCountR = 0, risetime = 0, falltime = 0;
+unsigned char overflowCount = 0;
+unsigned char history = 0;
+unsigned int noLoadL = 0, noLoadR = 0;
 
 #pragma code HIGH_INTERRUPT_VECTOR = 0x8	//Where the code goes when a high priority interrupt happens
 void high_interrupt (void)
@@ -31,12 +35,25 @@ void low_interrupt (void)
 #pragma interrupt toggle_LED1			//Interrupt code for status LED
 void toggle_LED1(void)
 {
-	INTCONbits.TMR0IF = 0;
-	LEDStatus1 = ~LEDStatus1;
-	TMR0H=0x00;
-	TMR0L=0x00;//f424
+	PIR1bits.TMR2IF = 0;
+	overflowCount++;
+	if(overflowCount > 14)
+	{
+		LEDStatus1 = ~LEDStatus1;
+		overflowCount = 0;
+	}
 }
 
+#pragma interrupt toggle_LED2
+void toggle_LED2(void)
+{
+	LEDStatus2 = ~LEDStatus2;
+	history == 2;
+//	INTCONbits.TMR0IF = 0;
+	TMR0H = (char)(TimeIntClk >> 8); 		//Set the initial value for the timer
+	TMR0L = (char)TimeIntClk; // & 0x00FF) << 8;
+}
+		
 #pragma interrupt hall_L		//interrupt code for Left hall sensor
 void hall_L(void)
 {
@@ -131,14 +148,27 @@ void HIGH_ISR (void)				//Figures out what interrupt triggered and runs the code
 		goto toggle_BrakeL
 		_endasm
 	}
+	else if(PIR1bits.TMR2IF && PIE1bits.TMR2IE)
+	{
+		_asm 
+		goto toggle_LED1
+		_endasm
+	}
+	else if(INTCONbits.TMR0IE && INTCONbits.TMR0IF)
+	{
+		_asm
+		goto toggle_LED2
+		_endasm
+	}	
 }
 
 void Brakes_Init(void)
 {
 	RCONbits.IPEN = 1;			//enables priority
 	IPR1bits.TMR1IP = 1;		//timer1 high priority
-	INTCON2bits.TMR0IP = 0;		//timer0 low priority
+	INTCON2bits.TMR0IP = 1;		//timer0 high priority
 	IPR2bits.TMR3IP = 1;		//timer3 high priority
+	IPR1bits.TMR2IP = 1;		//timer2 low priority
 	INTCON3bits.INT1IP = 1;		//INT1 high priority
 	IPR1bits.CCP1IP = 1;		//CCP1 high priority
 	INTCON2bits.INTEDG0 = 0;	//enables INT0 on falling edge
@@ -148,20 +178,24 @@ void Brakes_Init(void)
 	PIE1bits.TMR1IE = 1;		//enable timer1 interrupt
 	INTCONbits.TMR0IE = 1;		//enable timer0 interrupt
 	PIE2bits.TMR3IE = 1;		//enable timer3 interrupt
+	PIE1bits.TMR2IE = 1;		//enable tiemr2 interrupt
 	INTCONbits.INT0IE = 1;		//enable INT0 interrupt
 	INTCON3bits.INT1IE = 1;		//enable INT1 interrupt
 	CCP1CON = 0b00000101;		//sets up CCP1 as rising edge capture
 	PIE1bits.CCP1IE = 1;		//enable CCP1 interrupt -- elsewhere?
-	T0CON = 0b00000011;			//sets up timer 0, 1:8 prescalar
-	TMR0H = 0x00;				//sets initial as 0
-	TMR0L = 0x00;				//
+	T0CON = 0b00000111;			//sets up timer 0, 1:256 prescalar
+	TMR0H = 0xE1;				//sets initial as 0
+	TMR0L = 0x7B;				//
 	T1CON = 0b11000000;			//sets up timer 1, 1:1
 	TMR1H=0x00;					//sets initial as 0
 	TMR1L=0x00;					//
 	T3CON = 0b10000000;			//sets up timer3, 1:1 FOR CCP1
 	TMR3H = 0x00;				//sets initial as 0
 	TMR3L = 0x00;				//
-	T0CONbits.TMR0ON = 1;		//Turns timer0 on for the LED status
+	T2CON = 0b01111011;			//sets up timer2, 1:256 for LED status
+	PR2=0xFF;
+	T2CONbits.TMR2ON = 1;		//Turns timer2 on for the LED status
+//	T0CONbits.TMR0ON = 1;
 }
 
 void Set_Speed(unsigned char L)//, unsigned char R) //252 is the fastest safetly.
@@ -200,4 +234,28 @@ unsigned float get_Hall_L(void)
 unsigned float get_Hall_R(void)
 {
 	return HallCountR*constant;
+}
+
+void calibrate(void)
+{
+	if((SW1 || SW2) && history == 0)
+	{
+		TimeIntClk = 0xE17B;
+		T0CONbits.TMR0ON = 1;
+		history = 1;
+	}
+	else if(history == 2)
+	{
+		while(SW1 && SW2){}
+		T0CONbits.TMR0ON = 0;
+		INTCONbits.TMR0IF = 0;
+		noLoadL = Adc_Read(0);
+		noLoadR = Adc_Read(1);
+		LED6 = 1;
+		history = 0;
+	}
+	if(!SW1 && !SW2 && history == 1)
+	{
+		history = 0;
+	}		
 }
