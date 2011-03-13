@@ -33,15 +33,10 @@
 #define An1Tris TRISAbits.TRISA1
 
 //PWM
-#define BrakeLRx PORTCbits.RC2
-#define BrakeLRxTris TRISCbits.TRISC2
-#define BrakeRRx PORTCbits.RC1
-#define BrakeRRxTris TRISCbits.TRISC1
-
-#define BrakeL PORTAbits.RA6
-#define BrakeR PORTAbits.RA7
-#define BrakeLTris TRISAbits.TRISA6
-#define BrakeRTris TRISAbits.TRISA7
+#define BrakePWM PORTCbits.RC1				//CCP2
+#define BrakePWMTris TRISCbits.TRISC1
+#define BrakeRx PORTCbits.RC2				//CCP1
+#define BrakeRxTris TRISCbits.TRISC2
 
 //PORTD - Debug LEDS
 #define LED3 PORTDbits.RD0

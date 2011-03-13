@@ -9,6 +9,6 @@ unsigned float get_Hall_L(void);
 void calibrateNoLoad (void);
 void calibrateLoad(void);
 void takeOff(void);
-void land(void);
+void PWMInit(void);
 
 #endif

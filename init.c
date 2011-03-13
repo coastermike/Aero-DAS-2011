@@ -15,10 +15,8 @@ void Pin_Init()
 	
 	HallLTris = 1;
 	HallRTris = 1;
-	BrakeLRxTris = 1;
-	BrakeRRxTris = 1;
-	BrakeLTris = 0;
-	BrakeLTris = 0;
+	BrakePWMTris = 0;
+	BrakeRxTris = 1;
 	
 	LED3Tris = 0;
 	LED4Tris = 0;

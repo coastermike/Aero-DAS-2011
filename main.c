@@ -13,6 +13,7 @@ void main (void)
 	OSCCON=OSCCON | 0b01110011;  //page 32 datasheet
 	Pin_Init();
 	Brakes_Init();
+	PWMInit();
 	Adc_Init();
 	Set_Speed(0);
 	while(1)
@@ -21,18 +22,7 @@ void main (void)
 		calibrateLoad();
 		if(LED6 && LED7)//start
 		{
-//			if(status() == 0)	//takeoff
-//			{
-//				takeOff();
-//			}
-//			else if(status() == 1) //flight
-//			{
-//				
-//			}	
-//			else if(status() == 2) //landing
-//			{
-//				land();
-//			}
+//			takeOff();
 		}		
 	}
 
