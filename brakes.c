@@ -131,6 +131,8 @@ void measure_PWM(void)
 //		pulse = falltime-risetime;
 	
 		pulse = ReadCapture1();
+		PIR1bits.CCP1IF = 0;
+		PIR2bits.TMR3IF = 0;
 		if(pulse < 2100)
 		{
 			Set_Speed(0);
