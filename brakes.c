@@ -1,10 +1,12 @@
 #include <p18f4525.h>
 #include <pwm.h>
-#include <capture.h>
+#include <stdio.h>
+#include <usart.h>
 #include "pins.h"
 #include "init.h"
 #include "brakes.h"
 #include "adc_read.h"
+#include "serial.h"
 
 void toggle_LED1 (void);
 void toggle_LED2 (void);
@@ -16,10 +18,11 @@ void Timer3Reset(void);
 void HIGH_ISR(void);
 
 const unsigned float constant = .6;
-unsigned int TimeIntClk = 0, HallCountL = 0, HallCountR = 0, TempHallCountL = 0, TempHallCountR = 0, risetime = 0, falltime = 0;
+unsigned int TimeIntClk = 0, HallCountLandL = 0, HallCountTakeoffL, HallCountLandR = 0, HallCountTakeoffR = 0, TempHallCountL = 0, TempHallCountR = 0, risetime = 0, falltime = 0;
 unsigned char overflowCount = 0, leftForceRead = 0, rightForceRead = 0;
-unsigned char history = 0, history1 = 0, save = 0, pwmRiseFall = 0, timer3H = 0, timer3L = 0;
-unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0, pulse = 0, timer3 = 0;
+unsigned char history = 0, history1 = 0, save = 0, pwmRiseFall = 0;
+unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0, timer3 = 0;
+char countTakeoffL[16];
 
 #pragma code HIGH_INTERRUPT_VECTOR = 0x8	//Where the code goes when a high priority interrupt happens
 void high_interrupt (void)
@@ -44,7 +47,12 @@ void toggle_LED1(void)
 	if(overflowCount > 1)
 	{
 		LEDStatus1 = ~LEDStatus1;
-		overflowCount = 0;
+		overflowCount = 0;	
+	}
+	if(!BusyUSART())
+	{
+		sprintf(countTakeoffL, "TO_L:%7.2f\"",get_Hall_Takeoff_L());
+		putsUSART(countTakeoffL);
 	}
 }
 
@@ -67,10 +75,14 @@ void toggle_LED2(void)
 	else if (save == 2)
 	{
 		save = 3;
+		TempHallCountL = 0;
+		TempHallCountR = 0;
 	}
 	else if (save == 4)
 	{
 		save = 5;
+		TempHallCountL = 0;
+		TempHallCountR = 0;
 	}	
 	T0CONbits.TMR0ON = 0;
 	INTCONbits.TMR0IF = 0;
@@ -83,12 +95,16 @@ void hall_L(void)
 {
 	if(save == 1)
 	{
-		HallCountL++;
+		HallCountTakeoffL++;
 	}
 	else if (save == 2 || save == 4)
 	{
 		TempHallCountL++;
-	}		
+	}
+	else if (save == 5 || save == 6)
+	{
+		HallCountLandL++;
+	}			
 	INTCONbits.INT0IF = 0;
 }
 
@@ -97,11 +113,15 @@ void hall_R(void)
 {
 	if(save == 1)
 	{
-		HallCountR++;
+		HallCountTakeoffR++;
 	}
 	else if (save == 2 || save == 4)
 	{
 		TempHallCountR++;
+	}
+	else if (save == 5 || save == 6)
+	{
+		HallCountLandR++;
 	}
 	INTCON3bits.INT1IF = 0;
 }
@@ -122,7 +142,7 @@ void PWMRead(void)
 	{
 		INTCON2bits.INTEDG2 = 1;	//rising
 		T3CONbits.TMR3ON = 0;
-		timer3 = ((int)timer3H << 8 ) | timer3L;
+		timer3 = ((int)TMR3H << 8 ) | TMR3L;
 		INTCON3bits.INT2IF = 0;
 		pwmRiseFall = 0;
 		if(timer3 < 1)
@@ -141,47 +161,6 @@ void Timer3Reset(void)
 {
 	PIR2bits.TMR3IF = 0;
 }
-	
-//#pragma interrupt measure_PWM
-//void measure_PWM(void)
-//{
-//	if(CCP1CONbits.CCP1M0 == 1)	//rising
-//	{
-//		risetime = CCPR1H;
-//		risetime = risetime << 8;
-//		risetime = CCPR1L;
-//		PIE1bits.CCP1IE = 0;
-//		CCP1CONbits.CCP1M0 = 0;	//time on falling
-//		PIR1bits.CCP1IF = 0;
-//		PIE1bits.CCP1IE = 1;
-//	}
-//	else
-//	{
-//		falltime = CCPR1H;
-//		falltime = risetime << 8;
-//		falltime = CCPR1L;
-//		PIE1bits.CCP1IE = 0;
-//		CCP1CONbits.CCP1M0 = 1;	//time on rising
-//		PIR1bits.CCP1IF = 0;
-//		PIE1bits.CCP1IE = 1;
-//		TMR3H = 0x00;		//reset timer to 0
-//		TMR3L = 0x00;
-//		pulse = falltime-risetime;
-//	
-//		pulse = ReadCapture1();
-//		PIR1bits.CCP1IF = 0;
-//		PIR2bits.TMR3IF = 0;
-//		if(pulse < 2100)
-//		{
-//			Set_Speed(0);
-//		}
-//		else
-//		{
-//			Set_Speed(pulse);
-//		}	
-////Insert code for setting timer1 for the brake here
-//	
-//}
 
 void HIGH_ISR (void)				//Figures out what interrupt triggered and runs the code.
 {
@@ -197,12 +176,6 @@ void HIGH_ISR (void)				//Figures out what interrupt triggered and runs the code
 		goto hall_R
 		_endasm
 	}
-//	else if (PIR1bits.CCP1IF && PIE1bits.CCP1IE)
-//	{
-//		_asm
-//		goto measure_PWM
-//		_endasm
-//	}
 	else if (INTCON3bits.INT2IF && INTCON3bits.INT2IE)
 	{
 		_asm
@@ -237,7 +210,6 @@ void Brakes_Init(void)
 	IPR2bits.TMR3IP = 1;		//timer3 high priority
 	INTCON3bits.INT1IP = 1;		//INT1 high priority (INT0 is always high)
 	INTCON3bits.INT2IP = 1;		//INT2 high priority
-//	IPR1bits.CCP1IP = 1;		//CCP1 high priority
 	INTCON2bits.INTEDG0 = 0;	//enables INT0 on falling edge
 	INTCON2bits.INTEDG1 = 0;	//enables INT1 on falling edge
 	INTCON2bits.INTEDG2 = 1;	//enables INT2 on rising edge
@@ -249,23 +221,18 @@ void Brakes_Init(void)
 	INTCONbits.INT0IE = 1;		//enable INT0 interrupt
 	INTCON3bits.INT1IE = 1;		//enable INT1 interrupt
 	INTCON3bits.INT2IE = 1;		//enables INT2 interrupt
-//	CCP1CON = 0b00000101;		//sets up CCP1 as rising edge capture
-//	PIE1bits.CCP1IE = 1;		//enable CCP1 interrupt -- elsewhere?
-//	OpenCapture1(CAPTURE_INT_ON & CAP_EVERY_RISE_EDGE);
 	T0CON = 0b00000111;			//sets up timer 0, 1:256 prescalar
 	TMR0H = 0xE1;				//sets initial as 0
 	TMR0L = 0x7B;				//
 	T1CON = 0b11110000;			//sets up timer 1, 1:8 for LED status
 	TMR1H=0x0B;					//sets initial as 0
 	TMR1L=0xF7;					//
-//	T3CON = 0b11110000;			//sets up timer3, 1:8 FOR CCP1
 	T3CONbits.RD16 = 1;
 	T3CONbits.T3CKPS1 = 0b11;
 	T3CONbits.TMR3CS = 0;
 	TMR3H = 0x00;				//sets initial as 0
 	TMR3L = 0x00;				//
 	T1CONbits.TMR1ON = 1;		//Turns timer1 on for the LED status
-//	T3CONbits.TMR3ON = 1;
 }
 
 void PWMInit(void)
@@ -285,20 +252,24 @@ void Set_Speed(unsigned char L)//, unsigned char R) //252 is the fastest safetly
 	}
 }		
 
-void Reset_Hall_Counts(void)
+unsigned float get_Hall_Takeoff_L(void)
 {
-	HallCountR = 0;
-	HallCountL = 0;
+	return HallCountTakeoffL*constant;
 }
 
-unsigned float get_Hall_L(void)
+unsigned float get_Hall_Takeoff_R(void)
 {
-	return HallCountL*constant;
+	return HallCountTakeoffR*constant;
 }
 
-unsigned float get_Hall_R(void)
+unsigned float get_Hall_Land_L(void)
 {
-	return HallCountR*constant;
+	return HallCountLandL*constant;
+}
+
+unsigned float get_Hall_Land_R(void)
+{
+	return HallCountLandR*constant;
 }
 
 //waits for SW1 or 2 to be pressed for >1sec, then stores the values while unloaded.
@@ -380,12 +351,14 @@ void takeOff(void)
 	{
 		T0CONbits.TMR0ON = 0;
 		save = 1;
-		HallCountL = HallCountL + TempHallCountL;
-		HallCountR = HallCountR + TempHallCountR;
+		HallCountTakeoffL = HallCountTakeoffL + TempHallCountL;
+		HallCountTakeoffR = HallCountTakeoffR + TempHallCountR;
+		TempHallCountL = 0;
+		TempHallCountR = 0;
 	}
 	if(((leftForceRead < LoadL) || (rightForceRead < LoadR)) && save == 3)	//wheels touch for landing
 	{
-		TMR0H = 0xF0;
+		TMR0H = 0xF0;		//0.5seconds
 		TMR0L = 0xBE;
 		save = 4;
 		T0CONbits.TMR0ON = 1;
@@ -393,9 +366,15 @@ void takeOff(void)
 	if(((leftForceRead > LoadL) || (rightForceRead > LoadR)) && save == 4)	//plane in air following initial touch /error prevention
 	{
 		T0CONbits.TMR0ON = 0;
-		save = 3;
-		HallCountL = HallCountL + TempHallCountL;
-		HallCountR = HallCountR + TempHallCountR;
+		save = 3;		
+		TempHallCountL = 0;
+		TempHallCountR = 0;
 	}
-	
+	if(((leftForceRead < LoadL) || (rightForceRead < LoadR)) && save == 5)	//wheels landing for more than .5sec
+	{
+		save = 6;
+		HallCountLandL = HallCountLandL + TempHallCountL;
+		HallCountLandR = HallCountLandR + TempHallCountR;
+	}	
+		
 }

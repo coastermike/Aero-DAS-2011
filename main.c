@@ -4,6 +4,7 @@
 #include "init.h"
 #include "brakes.h"
 #include "adc_read.h"
+#include "serial.h"
 
 #pragma config OSC = INTIO67
 #pragma config PBADEN = OFF
@@ -15,6 +16,7 @@ void main (void)
 	Brakes_Init();
 	PWMInit();
 	Adc_Init();
+	Serial_Init();
 	Set_Speed(0);
 	while(1)
 	{
@@ -22,7 +24,7 @@ void main (void)
 		calibrateLoad();
 		if(LED6 && LED7)//start
 		{
-//			takeOff();
+			takeOff();
 		}		
 	}
 
