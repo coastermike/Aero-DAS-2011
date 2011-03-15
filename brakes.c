@@ -16,13 +16,13 @@ void hall_R (void);
 void PWMRead(void);
 void Timer3Reset(void);
 void HIGH_ISR(void);
-
-const unsigned float constant = .6;
-unsigned int TimeIntClk = 0, HallCountLandL = 0, HallCountTakeoffL, HallCountLandR = 0, HallCountTakeoffR = 0, TempHallCountL = 0, TempHallCountR = 0, risetime = 0, falltime = 0;
+unsigned float constant = 0.6, temp = 0;
+unsigned int TimeIntClk = 0, HallCountLandL = 0, HallCountTakeoffL = 0, HallCountLandR = 0, HallCountTakeoffR = 0, TempHallCountL = 0, TempHallCountR = 0;
 unsigned char overflowCount = 0, leftForceRead = 0, rightForceRead = 0;
-unsigned char history = 0, history1 = 0, save = 0, pwmRiseFall = 0;
+unsigned char history = 0, history1 = 0, save = 0, pwmRiseFall = 0, count = 0;
 unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0, timer3 = 0;
-char countTakeoffL[16];
+char countTakeoff[15], countLand[15];
+unsigned char sendH = 0, sendL = 0;
 
 #pragma code HIGH_INTERRUPT_VECTOR = 0x8	//Where the code goes when a high priority interrupt happens
 void high_interrupt (void)
@@ -49,11 +49,37 @@ void toggle_LED1(void)
 		LEDStatus1 = ~LEDStatus1;
 		overflowCount = 0;	
 	}
-	if(!BusyUSART())
+	
+	if(!BusyUSART() && count == 0)
 	{
-		sprintf(countTakeoffL, "TO_L:%7.2f\"",get_Hall_Takeoff_L());
-		putsUSART(countTakeoffL);
+		sprintf(countTakeoff, "TO:%6i 1/10\"", get_Hall_Takeoff());
+		putsUSART(countTakeoff);
+		count = 1;
 	}
+	else if(!BusyUSART() && count == 1)
+	{	
+		sprintf(countLand, "LA:%6i 1/10\"", get_Hall_Land());
+		putsUSART(countLand);
+		count = 0;
+	}
+		
+//	if(!BusyUSART() && count == 0)
+//	{
+//		putcUSART(1);
+//		while(BusyUSART());		
+//		sprintf(countTakeoff, "%6i", get_Hall_Takeoff());
+//		putsUSART(countTakeoff);
+//		count = 1;
+//	}
+//	else if(!BusyUSART() && count == 1)
+//	{
+//		putcUSART(2);
+//		while(BusyUSART());		
+//		sprintf(countLand, "%6i", get_Hall_Land());
+//		putsUSART(countLand);
+//		count = 0;
+//	}
+	
 }
 
 #pragma interrupt toggle_LED2
@@ -93,6 +119,7 @@ void toggle_LED2(void)
 #pragma interrupt hall_L		//interrupt code for Left hall sensor
 void hall_L(void)
 {
+	HallCountTakeoffL++;
 	if(save == 1)
 	{
 		HallCountTakeoffL++;
@@ -131,7 +158,7 @@ void PWMRead(void)
 {
 	if(pwmRiseFall == 0)
 	{
-		INTCON2bits.INTEDG2 = 0;	//falling
+		INTCON2bits.INTEDG2 = 1;	//falling
 		INTCON3bits.INT2IF = 0;
 		TMR3H = 0x00;				//sets initial as 0
 		TMR3L = 0x00;
@@ -140,18 +167,19 @@ void PWMRead(void)
 	}
 	else if(pwmRiseFall == 1)
 	{
-		INTCON2bits.INTEDG2 = 1;	//rising
+		INTCON2bits.INTEDG2 = 0;	//rising
 		T3CONbits.TMR3ON = 0;
-		timer3 = ((int)TMR3H << 8 ) | TMR3L;
+		timer3 = TMR3L;
+		timer3 = timer3 | ((int)TMR3H << 8);
 		INTCON3bits.INT2IF = 0;
 		pwmRiseFall = 0;
-		if(timer3 < 1)
+		if(timer3 < 600)
 		{
-			Set_Speed(0);
+			SetDCPWM2(0);
 		}
 		else
 		{
-			Set_Speed(timer3);
+			SetDCPWM2((int)(timer3*2-1200));
 		}	
 	}	
 }
@@ -227,7 +255,7 @@ void Brakes_Init(void)
 	T1CON = 0b11110000;			//sets up timer 1, 1:8 for LED status
 	TMR1H=0x0B;					//sets initial as 0
 	TMR1L=0xF7;					//
-	T3CONbits.RD16 = 1;
+	T3CONbits.RD16 = 0;
 	T3CONbits.T3CKPS1 = 0b11;
 	T3CONbits.TMR3CS = 0;
 	TMR3H = 0x00;				//sets initial as 0
@@ -238,38 +266,37 @@ void Brakes_Init(void)
 void PWMInit(void)
 {
 	OpenPWM2(0xFF);
-}
-	
-void Set_Speed(unsigned char L)//, unsigned char R) //252 is the fastest safetly.
+}		
+
+unsigned int get_Hall_Takeoff(void)
 {
-	if (L == 0)
+	return 5000*6;//HallCountTakeoffL;
+	if(HallCountTakeoffL > HallCountTakeoffR)
 	{
-		SetDCPWM2(0x000);
+		return HallCountTakeoffL*6;
 	}
 	else
 	{
-		SetDCPWM2((int)(-630+3*L/10));
+		return HallCountTakeoffR*6;	
 	}
-}		
-
-unsigned float get_Hall_Takeoff_L(void)
-{
-	return HallCountTakeoffL*constant;
 }
 
-unsigned float get_Hall_Takeoff_R(void)
+unsigned int get_Hall_Land(void)
 {
-	return HallCountTakeoffR*constant;
+	return 1000*6;
+	if(HallCountLandL > HallCountLandR)
+	{
+		return HallCountLandL*6;
+	}
+	else
+	{
+		return HallCountLandR*6;	
+	}	
 }
 
-unsigned float get_Hall_Land_L(void)
+unsigned int get_Hall_Land_R(void)
 {
-	return HallCountLandL*constant;
-}
-
-unsigned float get_Hall_Land_R(void)
-{
-	return HallCountLandR*constant;
+	return HallCountLandR;
 }
 
 //waits for SW1 or 2 to be pressed for >1sec, then stores the values while unloaded.

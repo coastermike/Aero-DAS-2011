@@ -1,5 +1,6 @@
 #include <p18f4525.h>
 #include <usart.h>
+#include <pwm.h>
 #include "pins.h"
 #include "init.h"
 #include "brakes.h"
@@ -17,9 +18,10 @@ void main (void)
 	PWMInit();
 	Adc_Init();
 	Serial_Init();
-	Set_Speed(0);
+	SetDCPWM2(0);
 	while(1)
 	{
+		Adc_Read(0);
 		calibrateNoLoad();
 		calibrateLoad();
 		if(LED6 && LED7)//start

@@ -3,12 +3,15 @@
 
 void Serial_Init(void)
 {
+	RCSTAbits.SPEN=1;
 	TRISCbits.TRISC7 = 1;
-	TRISCbits.TRISC6 = 0;
+	TRISCbits.TRISC6 = 1;
 	OpenUSART(	USART_TX_INT_OFF & 	
 				USART_RX_INT_OFF &
 				USART_ASYNCH_MODE &
 				USART_EIGHT_BIT &
-				USART_BRGH_HIGH, 25);
+				USART_SINGLE_RX &
+				USART_BRGH_HIGH, 103);
+	BAUDCON = 0b01000000;
 	
 }
