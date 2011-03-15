@@ -47,6 +47,7 @@ void toggle_LED1(void)
 	if(overflowCount > 1)
 	{
 		LEDStatus1 = ~LEDStatus1;
+		LED3 = ~LED3;
 		overflowCount = 0;	
 	}
 	
