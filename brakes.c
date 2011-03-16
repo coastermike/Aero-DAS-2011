@@ -18,9 +18,9 @@ void Timer3Reset(void);
 void HIGH_ISR(void);
 unsigned float constant = 0.6, temp = 0;
 unsigned int TimeIntClk = 0, HallCountLandL = 0, HallCountTakeoffL = 0, HallCountLandR = 0, HallCountTakeoffR = 0, TempHallCountL = 0, TempHallCountR = 0;
-unsigned char overflowCount = 0, leftForceRead = 0, rightForceRead = 0;
+unsigned char overflowCount = 0, leftForceRead = 0, rightForceRead = 0, countbrake = 0, countbrake2 = 0;
 unsigned char history = 0, history1 = 0, save = 0, pwmRiseFall = 0, count = 0;
-unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0, timer3 = 0;
+unsigned int noLoadL = 0, noLoadR = 0, LoadL = 0, LoadR = 0, timer3 = 0, prevBrake = 0, prevBrakeH = 0, prevBrakeL = 0;
 char countTakeoff[15], countLand[15];
 unsigned char sendH = 0, sendL = 0;
 
@@ -121,36 +121,37 @@ void toggle_LED2(void)
 void hall_L(void)
 {
 	HallCountTakeoffL++;
-	if(save == 1)
-	{
-		HallCountTakeoffL++;
-	}
-	else if (save == 2 || save == 4)
-	{
-		TempHallCountL++;
-	}
-	else if (save == 5 || save == 6)
-	{
-		HallCountLandL++;
-	}			
+//	if(save == 1)
+//	{
+//		HallCountTakeoffL++;
+//	}
+//	else if (save == 2 || save == 4)
+//	{
+//		TempHallCountL++;
+//	}
+//	else if (save == 5 || save == 6)
+//	{
+//		HallCountLandL++;
+//	}			
 	INTCONbits.INT0IF = 0;
 }
 
 #pragma interrupt hall_R		//interrupt code for Right hall sensor
 void hall_R(void)
 {
-	if(save == 1)
-	{
-		HallCountTakeoffR++;
-	}
-	else if (save == 2 || save == 4)
-	{
-		TempHallCountR++;
-	}
-	else if (save == 5 || save == 6)
-	{
-		HallCountLandR++;
-	}
+	HallCountTakeoffR++;
+//	if(save == 1)
+//	{
+//		HallCountTakeoffR++;
+//	}
+//	else if (save == 2 || save == 4)
+//	{
+//		TempHallCountR++;
+//	}
+//	else if (save == 5 || save == 6)
+//	{
+//		HallCountLandR++;
+//	}
 	INTCON3bits.INT1IF = 0;
 }
 
@@ -177,10 +178,28 @@ void PWMRead(void)
 		if(timer3 < 600)
 		{
 			SetDCPWM2(0);
+			countbrake = 0;
+		}
+		else if(countbrake < 2)
+		{
+			SetDCPWM2(0);
+			countbrake++;
 		}
 		else
-		{
-			SetDCPWM2((int)(timer3*2-1200));
+		{	
+			if(prevBrakeL > timer3 && prevBrakeH < timer3 && countbrake < 2)
+			{
+				SetDCPWM2((int)(prevBrake*2-1200));
+				countbrake2++;
+			}
+			else
+			{
+				SetDCPWM2((int)(timer3*2-1200));
+				prevBrake = timer3;
+				prevBrakeL = timer3-50;
+				prevBrakeH = timer3+50;
+				countbrake2 = 0;
+			}	
 		}	
 	}	
 }
@@ -271,7 +290,7 @@ void PWMInit(void)
 
 unsigned int get_Hall_Takeoff(void)
 {
-	return 5000*6;//HallCountTakeoffL;
+//	return 5000*6;//HallCountTakeoffL;
 	if(HallCountTakeoffL > HallCountTakeoffR)
 	{
 		return HallCountTakeoffL*6;
@@ -284,7 +303,7 @@ unsigned int get_Hall_Takeoff(void)
 
 unsigned int get_Hall_Land(void)
 {
-	return 1000*6;
+//	return 1000*6;
 	if(HallCountLandL > HallCountLandR)
 	{
 		return HallCountLandL*6;
