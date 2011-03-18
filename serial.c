@@ -11,7 +11,7 @@ void Serial_Init(void)
 				USART_ASYNCH_MODE &
 				USART_EIGHT_BIT &
 				USART_SINGLE_RX &
-				USART_BRGH_HIGH, 103);
+				USART_BRGH_HIGH, 25);
 	BAUDCON = 0b01000000;
 	
 }

@@ -53,14 +53,20 @@ void toggle_LED1(void)
 	
 	if(!BusyUSART() && count == 0)
 	{
-		sprintf(countTakeoff, "TO:%6i 1/10\"", get_Hall_Takeoff());
-		putsUSART(countTakeoff);
+		putcUSART(0);
+		while(BusyUSART());
+		putcUSART(get_Hall_Takeoff() >> 8);
+		while(BusyUSART());
+		putcUSART((char)get_Hall_Takeoff());
 		count = 1;
 	}
 	else if(!BusyUSART() && count == 1)
 	{	
-		sprintf(countLand, "LA:%6i 1/10\"", get_Hall_Land());
-		putsUSART(countLand);
+		putcUSART(1);
+		while(BusyUSART());
+		putcUSART(get_Hall_Land() >> 8);
+		while(BusyUSART());
+		putcUSART((char)get_Hall_Land());
 		count = 0;
 	}
 		
@@ -290,33 +296,28 @@ void PWMInit(void)
 
 unsigned int get_Hall_Takeoff(void)
 {
-//	return 5000*6;//HallCountTakeoffL;
+//	return 5000;//HallCountTakeoffL;
 	if(HallCountTakeoffL > HallCountTakeoffR)
 	{
-		return HallCountTakeoffL*6;
+		return HallCountTakeoffL;
 	}
 	else
 	{
-		return HallCountTakeoffR*6;	
+		return HallCountTakeoffR;	
 	}
 }
 
 unsigned int get_Hall_Land(void)
 {
-//	return 1000*6;
+//	return 1000;
 	if(HallCountLandL > HallCountLandR)
 	{
-		return HallCountLandL*6;
+		return HallCountLandL;
 	}
 	else
 	{
-		return HallCountLandR*6;	
+		return HallCountLandR;	
 	}	
-}
-
-unsigned int get_Hall_Land_R(void)
-{
-	return HallCountLandR;
 }
 
 //waits for SW1 or 2 to be pressed for >1sec, then stores the values while unloaded.
@@ -389,8 +390,8 @@ void takeOff(void)
 	}	
 	if((leftForceRead > LoadL) && (rightForceRead > LoadR) && save == 1)	//wheels lift
 	{
-		TMR0H = 0xC2;		//2 seconds
-		TMR0L = 0xF7;
+		TMR0H = 0xF0;		//0.5 seconds
+		TMR0L = 0xBE;
 		save = 2;
 		T0CONbits.TMR0ON = 1;
 	}

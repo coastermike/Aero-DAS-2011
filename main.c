@@ -24,7 +24,7 @@ void main (void)
 		Adc_Read(0);
 		calibrateNoLoad();
 		calibrateLoad();
-		if(LED6 && LED7)//start
+		if(LED7)//start
 		{
 			takeOff();
 		}		

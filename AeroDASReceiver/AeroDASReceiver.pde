@@ -11,7 +11,7 @@ float takeofffloat = 0, landfloat = 0;
 void setup()
 {
    lcd.setup();
-   Serial.begin(4800);
+   Serial.begin(19200);
 }
 
 void loop()
