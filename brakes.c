@@ -68,25 +68,7 @@ void toggle_LED1(void)
 		while(BusyUSART());
 		putcUSART((char)get_Hall_Land());
 		count = 0;
-	}
-		
-//	if(!BusyUSART() && count == 0)
-//	{
-//		putcUSART(1);
-//		while(BusyUSART());		
-//		sprintf(countTakeoff, "%6i", get_Hall_Takeoff());
-//		putsUSART(countTakeoff);
-//		count = 1;
-//	}
-//	else if(!BusyUSART() && count == 1)
-//	{
-//		putcUSART(2);
-//		while(BusyUSART());		
-//		sprintf(countLand, "%6i", get_Hall_Land());
-//		putsUSART(countLand);
-//		count = 0;
-//	}
-	
+	}	
 }
 
 #pragma interrupt toggle_LED2
@@ -126,38 +108,38 @@ void toggle_LED2(void)
 #pragma interrupt hall_L		//interrupt code for Left hall sensor
 void hall_L(void)
 {
-	HallCountTakeoffL++;
-//	if(save == 1)
-//	{
-//		HallCountTakeoffL++;
-//	}
-//	else if (save == 2 || save == 4)
-//	{
-//		TempHallCountL++;
-//	}
-//	else if (save == 5 || save == 6)
-//	{
-//		HallCountLandL++;
-//	}			
+//	HallCountTakeoffL++;
+	if(save == 1)
+	{
+		HallCountTakeoffL++;
+	}
+	else if (save == 2 || save == 4)
+	{
+		TempHallCountL++;
+	}
+	else if (save == 5 || save == 6)
+	{
+		HallCountLandL++;
+	}			
 	INTCONbits.INT0IF = 0;
 }
 
 #pragma interrupt hall_R		//interrupt code for Right hall sensor
 void hall_R(void)
 {
-	HallCountTakeoffR++;
-//	if(save == 1)
-//	{
-//		HallCountTakeoffR++;
-//	}
-//	else if (save == 2 || save == 4)
-//	{
-//		TempHallCountR++;
-//	}
-//	else if (save == 5 || save == 6)
-//	{
-//		HallCountLandR++;
-//	}
+//	HallCountTakeoffR++;
+	if(save == 1)
+	{
+		HallCountTakeoffR++;
+	}
+	else if (save == 2 || save == 4)
+	{
+		TempHallCountR++;
+	}
+	else if (save == 5 || save == 6)
+	{
+		HallCountLandR++;
+	}
 	INTCON3bits.INT1IF = 0;
 }
 
@@ -272,8 +254,8 @@ void Brakes_Init(void)
 	PIE1bits.TMR1IE = 1;		//enable timer1 interrupt
 	INTCONbits.TMR0IE = 1;		//enable timer0 interrupt
 	PIE2bits.TMR3IE = 1;		//enable timer3 interrupt
-	INTCONbits.INT0IE = 1;		//enable INT0 interrupt
-	INTCON3bits.INT1IE = 1;		//enable INT1 interrupt
+	INTCONbits.INT0IE = 0;		//enable INT0 interrupt
+	INTCON3bits.INT1IE = 0;		//enable INT1 interrupt
 	INTCON3bits.INT2IE = 1;		//enables INT2 interrupt
 	T0CON = 0b00000111;			//sets up timer 0, 1:256 prescalar
 	TMR0H = 0xE1;				//sets initial as 0
