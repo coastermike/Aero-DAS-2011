@@ -1,11 +1,11 @@
 #include <stdio.h>
 //Aero LCD display
 
-float takeoffvalue = 0, landingvalue = 35.67;
+float takeoffvalue = 0, landingvalue = 0;
 char takeoff[32], landing[32];
-int temp;
+unsigned int temp;
 char choose;
-char takeoffH = 0, takeoffL = 0, landH = 0, landL = 0;
+unsigned char takeoffH = 0, takeoffL = 0, landH = 0, landL = 0;
 
 void setup()
 {
