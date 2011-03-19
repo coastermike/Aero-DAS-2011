@@ -5,5 +5,6 @@
 
 void Adc_Init(void);
 unsigned char Adc_Read(char ch);
+unsigned char Adc_Average (char ch);
 
 #endif

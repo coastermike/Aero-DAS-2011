@@ -6,6 +6,7 @@ char takeoff[32], landing[32];
 unsigned int temp;
 char choose;
 unsigned char takeoffH = 0, takeoffL = 0, landH = 0, landL = 0;
+unsigned char forceL = 255, forceR = 255;
 
 void setup()
 {
@@ -50,7 +51,25 @@ void loop()
       stroke(255,255,255);
       text(landing, 20, 170, 15);
     }
-  }      
+    else if(choose == 2)
+    {
+      while(!Serial.available());
+      forceL = Serial.read();
+      stroke(0,0,0);
+      rect(10, 210, 80, 20);
+      stroke(255,255,255);
+      text(forceL, 20, 220);
+    }
+    else if(choose == 3)
+    {
+      while(!Serial.available());
+      forceR = Serial.read();
+      stroke(0,0,0);
+      rect(90, 210, 80, 20);
+      stroke(255,255,255);
+      text(forceR, 100, 220);
+    }
+  } 
 }
 
 

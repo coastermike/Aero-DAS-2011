@@ -21,7 +21,6 @@ void main (void)
 	SetDCPWM2(0);
 	while(1)
 	{
-		Adc_Read(0);
 		calibrateNoLoad();
 		calibrateLoad();
 		if(LED7)//start

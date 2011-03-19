@@ -26,3 +26,15 @@ unsigned char Adc_Read(char ch)  //return value read?
 	ADCON0 = 0x00;			//disables the converter
 	return ADRESH;					//returns the result
 }
+
+unsigned char Adc_Average (char ch) //returns the average of a few reads of an ADC channel
+{
+	int average  = 10;
+	int sum = 0;
+	int i;
+	for	(i = 0; i < average; i++)
+	{
+		sum = sum + Adc_Read(ch);
+	}	
+	return sum/average;
+}

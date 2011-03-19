@@ -67,8 +67,22 @@ void toggle_LED1(void)
 		putcUSART(get_Hall_Land() >> 8);
 		while(BusyUSART());
 		putcUSART((char)get_Hall_Land());
+		count = 2;
+	}
+	else if(!BusyUSART() && count == 2)
+	{	
+		putcUSART(2);
+		while(BusyUSART());
+		putcUSART(Adc_Read(0));
+		count = 3;
+	}
+	else if(!BusyUSART() && count == 3)
+	{	
+		putcUSART(3);
+		while(BusyUSART());
+		putcUSART(Adc_Read(1));
 		count = 0;
-	}	
+	}
 }
 
 #pragma interrupt toggle_LED2
@@ -87,22 +101,24 @@ void toggle_LED2(void)
 	{
 		history1 = 11;
 	}
-	else if (save == 2)
+	if (save == 2)
 	{
 		save = 3;
 		TempHallCountL = 0;
 		TempHallCountR = 0;
+		LED6 = 1;
 	}
-	else if (save == 4)
+	if (save == 4)
 	{
 		save = 5;
 		TempHallCountL = 0;
 		TempHallCountR = 0;
+		LED6 = 0;
 	}	
 	T0CONbits.TMR0ON = 0;
 	INTCONbits.TMR0IF = 0;
-	TMR0H = (char)(TimeIntClk >> 8); 		//Set the initial value for the timer
-	TMR0L = (char)TimeIntClk; // & 0x00FF) << 8;
+//	TMR0H = (char)(TimeIntClk >> 8); 		//Set the initial value for the timer
+//	TMR0L = (char)TimeIntClk; // & 0x00FF) << 8;
 }
 		
 #pragma interrupt hall_L		//interrupt code for Left hall sensor
@@ -317,7 +333,7 @@ void calibrateNoLoad(void)
 		while(SW2){}
 		noLoadL = Adc_Read(0);
 		noLoadR = Adc_Read(1);
-		LED6 = ~LED6;
+//		LED6 = ~LED6;
 		history = 0;
 	}
 	if(!SW2 && history == 1)
@@ -347,8 +363,8 @@ void calibrateLoad(void)
 	}
 	if(history1 == 11)
 	{	
-		LoadL = Adc_Read(0);
-		LoadR = Adc_Read(1);
+		LoadL = Adc_Read(0) + 50;
+		LoadR = Adc_Read(1) + 50;
 		LED7 = ~LED7;
 		history1 = 0;	
 	}
@@ -370,14 +386,15 @@ void takeOff(void)
 		INTCONbits.INT0IE = 1;
 		INTCON3bits.INT1IE = 1;
 	}	
-	if((leftForceRead > LoadL) && (rightForceRead > LoadR) && save == 1)	//wheels lift
+	if(((leftForceRead > 230) || (rightForceRead > 230)) && save == 1)	//wheels lift
 	{
 		TMR0H = 0xF0;		//0.5 seconds
 		TMR0L = 0xBE;
 		save = 2;
+		LED6 = 1;
 		T0CONbits.TMR0ON = 1;
 	}
-	if(((leftForceRead < LoadL) || (rightForceRead < LoadR)) && save == 2)	//wheels retouch downwithin 2 seconds
+	if(((leftForceRead < 200) && (rightForceRead < 200)) && save == 2 && save != 1)	//wheels retouch downwithin 2 seconds
 	{
 		T0CONbits.TMR0ON = 0;
 		save = 1;
@@ -385,26 +402,31 @@ void takeOff(void)
 		HallCountTakeoffR = HallCountTakeoffR + TempHallCountR;
 		TempHallCountL = 0;
 		TempHallCountR = 0;
+		LED6 = 0;
 	}
-	if(((leftForceRead < LoadL) || (rightForceRead < LoadR)) && save == 3)	//wheels touch for landing
+	if(((leftForceRead < 150) || (rightForceRead < 150)) && save == 3)	//wheels touch for landing
 	{
 		TMR0H = 0xF0;		//0.5seconds
 		TMR0L = 0xBE;
 		save = 4;
 		T0CONbits.TMR0ON = 1;
+		LED6 = 0;
 	}
-	if(((leftForceRead > LoadL) || (rightForceRead > LoadR)) && save == 4)	//plane in air following initial touch /error prevention
+	if(((leftForceRead > 200) || (rightForceRead > 200)) && save == 4)	//plane in air following initial touch /error prevention
 	{
 		T0CONbits.TMR0ON = 0;
 		save = 3;		
 		TempHallCountL = 0;
 		TempHallCountR = 0;
+		LED6 = 1;
 	}
-	if(((leftForceRead < LoadL) || (rightForceRead < LoadR)) && save == 5)	//wheels landing for more than .5sec
+	if(((leftForceRead < 170) || (rightForceRead < 170)) && save == 5)	//wheels landing for more than .5sec
 	{
 		save = 6;
 		HallCountLandL = HallCountLandL + TempHallCountL;
 		HallCountLandR = HallCountLandR + TempHallCountR;
+		LED6 = 0;
+		LED3 = 1;
 	}	
 		
 }
